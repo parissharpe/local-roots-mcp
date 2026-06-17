@@ -20,6 +20,7 @@ export interface BusinessSignals {
   county?: string;
   formatted_address?: string;
   has_chain_in_name?: boolean;
+  wayback_earliest_year?: number | null;
 }
 
 export type Tier = "tier_1" | "tier_2" | "tier_3" | "tier_4";
@@ -89,6 +90,9 @@ export function score(signals: BusinessSignals): ScoreBreakdown {
   universal.push(...familyOwnershipSignals(signals));
   universal.push(...lowMarketingFootprintSignals(signals));
   universal.push(...singleLocationSignal(signals));
+  if (signals.wayback_earliest_year !== undefined) {
+    universal.push(...waybackTenureSignals(signals.wayback_earliest_year));
+  }
 
   // ---------------- Universal negative signals ----------------
   negatives.push(...algorithmicWinnerSignals(signals));
@@ -271,6 +275,38 @@ function algorithmicWinnerSignals(s: BusinessSignals): SignalLine[] {
   return out;
 }
 
+function waybackTenureSignals(year: number | null): SignalLine[] {
+  const out: SignalLine[] = [];
+  if (year === null) {
+    out.push({
+      signal: "wayback_no_snapshot",
+      points: 0,
+      why: "No Wayback Machine snapshot found for this website. May indicate a new domain, a recently rebuilt site, or a site that has not been archived. Not scored against the business.",
+    });
+    return out;
+  }
+  if (year < 2005) {
+    out.push({
+      signal: "tenure_wayback_pre_2005",
+      points: 20,
+      why: `Wayback Machine shows an archived snapshot from ${year}. A web presence before 2005 predates social media and review aggregators, suggesting the business was established before the algorithmic-discovery era.`,
+    });
+  } else if (year < 2010) {
+    out.push({
+      signal: "tenure_wayback_pre_2010",
+      points: 12,
+      why: `Wayback Machine shows an archived snapshot from ${year}. Web presence before 2010 correlates with a pre-social-media-era business.`,
+    });
+  } else if (year < 2015) {
+    out.push({
+      signal: "tenure_wayback_pre_2015",
+      points: 6,
+      why: `Wayback Machine shows an archived snapshot from ${year}. A decade-plus web presence predates the mass adoption of restaurant and business discovery apps.`,
+    });
+  }
+  return out;
+}
+
 function inferCategory(s: BusinessSignals): "farm" | "restaurant" | "retail" | "service" | "other" {
   if (s.category_hint) return s.category_hint;
   const types = s.google_place_types ?? [];
@@ -322,7 +358,7 @@ function farmCategoryBonuses(s: BusinessSignals): SignalLine[] {
     out.push({
       signal: "nc_century_farm",
       points: 30,
-      why: `Listed in the NC Century Farm registry (family: ${century.entry.family_surname}, county: ${century.entry.county}). 100+ years continuous family ownership of working farmland.`,
+      why: `Listed in the NC Century Farm registry (farm: ${century.entry.name}, county: ${century.entry.county}${century.entry.since_year ? `, farming since ${century.entry.since_year}` : ""}). 100+ years continuous family ownership of working farmland.`,
     });
   } else if (century.registry_size === 0 && (s.formatted_address ?? "").toLowerCase().includes("nc")) {
     out.push({

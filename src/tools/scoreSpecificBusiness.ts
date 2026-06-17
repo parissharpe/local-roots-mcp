@@ -2,6 +2,7 @@ import { z } from "zod";
 import { searchText, getPlaceDetails, type Place } from "../lib/google-places.js";
 import { score, type ScoreBreakdown } from "../lib/scoring.js";
 import { detectChain } from "../lib/chains.js";
+import { checkWaybackTenure } from "../lib/wayback.js";
 import type { EducationalResponse } from "../util/response.js";
 
 export const inputSchema = z.object({
@@ -36,6 +37,7 @@ export interface Answer {
     user_rating_count?: number;
     editorial_summary?: string;
     business_status?: string;
+    wayback_earliest_year?: number | null;
   };
   tier: ScoreBreakdown["tier"];
   tier_label: string;
@@ -58,6 +60,7 @@ async function resolvePlace(input: Input): Promise<Place> {
 export async function scoreSpecificBusiness(input: Input): Promise<EducationalResponse<Answer>> {
   requireResolvableInput(input);
   const place = await resolvePlace(input);
+  const waybackYear = place.website_uri ? await checkWaybackTenure(place.website_uri) : undefined;
   const chain = detectChain(place.display_name);
   const breakdown = score({
     name: place.display_name,
@@ -69,6 +72,7 @@ export async function scoreSpecificBusiness(input: Input): Promise<EducationalRe
     editorial_summary: place.editorial_summary,
     formatted_address: place.formatted_address,
     has_chain_in_name: chain.matched,
+    wayback_earliest_year: waybackYear,
   });
 
   const practical = breakdown.disqualified
@@ -94,6 +98,7 @@ export async function scoreSpecificBusiness(input: Input): Promise<EducationalRe
         user_rating_count: place.user_rating_count,
         editorial_summary: place.editorial_summary,
         business_status: place.business_status,
+        wayback_earliest_year: waybackYear,
       },
       tier: breakdown.tier,
       tier_label: breakdown.tier_label,

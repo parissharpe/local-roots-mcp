@@ -22,36 +22,37 @@ Tier thresholds are tuned to current real-world data. If you find yourself adjus
 
 ## Populating the NC Century Farm dataset
 
-The NC Department of Agriculture and Consumer Services Century Farm Family Program recognizes farms continuously owned by the same family for 100 years or more. There are approximately 1,800 recognized farms. The list is not available via API and must be assembled manually.
+The NC Department of Agriculture and Consumer Services Century Farm Family Program recognizes farms continuously owned by the same family for 100 years or more. There are approximately 1,800 recognized farms. A public directory is browseable by county group at https://www.ncagr.gov/divisions/public-affairs/directory-of-century-farms. A 2024 PDF directory is also available for download from that page.
+
+A 15-entry sample from NCDA&CS public records is bundled at `data/century-farms-nc-sample.json` and is used automatically when the main registry is empty. This lets the `nc_century_farm` bonus fire for demonstration and testing. To replace the sample with the full registry, follow the procedure below.
 
 Population procedure:
 
-1. Request the current Century Farm list from NCDA&CS:
-   - Public information request to https://www.ncagr.gov, Marketing Division.
-   - Phone: NCDA&CS Marketing Division, 919-707-3100.
-   - The list has been provided as a printed roster or Excel file in past requests.
+1. Obtain the full Century Farm list from NCDA&CS:
+   - Browse the county directory at https://www.ncagr.gov/divisions/public-affairs/directory-of-century-farms and copy entries from each county page, or
+   - Submit a public information request to https://www.ncagr.gov (Marketing Division, 919-707-3100). The full list has been provided as a printed roster or Excel file in past requests.
 
 2. Normalize each entry into the schema in `data/century-farms-nc.json`:
    ```json
    {
-     "family_surname": "Wilson",
+     "name": "Wilson Family Farm",
      "county": "Wake",
-     "year_recognized": 1987,
-     "farm_name": "Wilson Family Farm",
-     "notes": "100 years as of 1987"
+     "city": "Raleigh",
+     "since_year": 1887,
+     "website": "https://wilsonfamilyfarm.com"
    }
    ```
-   - `family_surname` and `county` are required.
-   - `farm_name` is optional but improves matching for businesses where the operating name differs from the family surname.
-   - `notes` is freeform.
+   - `name` and `county` are required.
+   - `city` and `website` are optional but add precision. Providing a website enables Wayback Machine tenure inference for the farm.
+   - `since_year` is the year the family began farming the land, not the year the Century Farm award was granted.
 
-3. Sort the array by `county` then `family_surname` so diffs stay readable.
+3. Sort the array by `county` then `name` so diffs stay readable.
 
 4. Update `_metadata.populated_date` and `_metadata.expected_record_count`.
 
 5. Run `npm test` and `npm run smoke-test` to verify nothing regressed. Then verify with a known Century Farm name + county that `score_specific_business` now produces the `nc_century_farm` bonus.
 
-The empty-array placeholder is intentional. `src/lib/century-farms.ts` is required to gracefully handle a zero-record registry so the rest of the system works end-to-end before this data lands.
+When `data/century-farms-nc.json` contains at least one entry, it takes precedence over the sample file. The sample is bypassed automatically.
 
 ## The chain database
 

@@ -28,13 +28,11 @@ export function lookupCenturyFarm(
   const countyNeedle = county ? normalize(county) : null;
 
   for (const entry of farms) {
-    const surname = normalize(entry.family_surname);
+    const entryName = normalize(entry.name);
     const entryCounty = normalize(entry.county);
-    const farmNameMatch = entry.farm_name ? normalize(entry.farm_name) : "";
 
-    const surnameInName = surname && needle.split(" ").includes(surname);
-    const farmNameMatches = farmNameMatch && needle.includes(farmNameMatch);
-    if (!surnameInName && !farmNameMatches) continue;
+    const nameMatch = entryName && (needle.includes(entryName) || entryName.includes(needle));
+    if (!nameMatch) continue;
 
     if (countyNeedle && entryCounty !== countyNeedle) continue;
 

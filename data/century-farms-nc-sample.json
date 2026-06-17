@@ -1,0 +1,19 @@
+{
+  "farms": [
+    { "name": "Payne Meadows", "county": "Cherokee", "city": "Murphy", "since_year": 1853, "website": "https://www.paynemeadows.com/" },
+    { "name": "Brush Creek Swiss Farms", "county": "Chatham", "city": "Siler City", "since_year": 1927 },
+    { "name": "Century Farm Orchards", "county": "Caswell", "city": "Reidsville", "since_year": 1872, "website": "https://www.centuryfarmorchards.com/" },
+    { "name": "Mtn. View Wagyu", "county": "Catawba", "city": "Hickory", "since_year": 1913 },
+    { "name": "Plum Granny Farm", "county": "Stokes", "city": "King", "since_year": 1875, "website": "https://plumgrannyfarm.com/" },
+    { "name": "Twiddle Dee Farm", "county": "Sampson", "city": "Clinton", "since_year": 1913 },
+    { "name": "Lake Hogan Farms", "county": "Orange", "city": "Chapel Hill", "since_year": 1772 },
+    { "name": "Snipes Farm at Rolling Hills", "county": "Chatham", "since_year": 1735 },
+    { "name": "Cox Farms", "county": "Randolph", "since_year": 1761 },
+    { "name": "Sloop Farm", "county": "Rowan", "since_year": 1783 },
+    { "name": "Herndon Hills Farm", "county": "Durham", "since_year": 1748 },
+    { "name": "Herring Farms", "county": "Duplin", "since_year": 1788 },
+    { "name": "LittleBerry Farm", "county": "Cabarrus", "since_year": 1865 },
+    { "name": "Wayne Cook's New Moon Farm", "county": "Cabarrus", "since_year": 1822 },
+    { "name": "Rankin Family Farm LLC", "county": "Cabarrus", "since_year": 1833 }
+  ]
+}

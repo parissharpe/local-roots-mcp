@@ -1,5 +1,5 @@
 /**
- * Smoke test. Exercises each of the four tools with realistic example inputs.
+ * Smoke test. Exercises each of the five tools with realistic example inputs.
  * Run with: npm run smoke-test
  *
  * If GOOGLE_PLACES_API_KEY is missing, the smoke test prints a clear notice
@@ -11,6 +11,7 @@ import { discoverLocalIndependents, inputSchema as discoverIn } from "../src/too
 import { scoreSpecificBusiness, inputSchema as scoreIn } from "../src/tools/scoreSpecificBusiness.js";
 import { findFarmsWithOnlineStore, inputSchema as farmsIn } from "../src/tools/findFarmsWithOnlineStore.js";
 import { neighborhoodLocalIndex, inputSchema as indexIn } from "../src/tools/neighborhoodLocalIndex.js";
+import { compareLocalVsChain, inputSchema as compareIn } from "../src/tools/compareLocalVsChain.js";
 
 import { score } from "../src/lib/scoring.js";
 import { detectChain } from "../src/lib/chains.js";
@@ -71,7 +72,7 @@ async function main(): Promise<void> {
   if (!haveKey) {
     process.stdout.write(
       "\nGOOGLE_PLACES_API_KEY is not set. Skipping live tool calls.\n" +
-        "Set the env var and re-run to exercise discover_local_independents, score_specific_business, find_farms_with_online_store, and neighborhood_local_index against the real API.\n",
+        "Set the env var and re-run to exercise discover_local_independents, score_specific_business, find_farms_with_online_store, neighborhood_local_index, and compare_local_vs_chain against the real API.\n",
     );
     finish();
     return;
@@ -102,6 +103,17 @@ async function main(): Promise<void> {
   await check("East Nashville, TN, default categories", () =>
     neighborhoodLocalIndex(
       indexIn.parse({ neighborhood: "East Nashville, TN", radius_km: 3, sample_size: 8 }),
+    ),
+  );
+
+  section("Live: compare_local_vs_chain (Finca Coffee vs Starbucks, Charlotte, NC)");
+  await check("Finca Coffee vs Starbucks near Charlotte, NC", () =>
+    compareLocalVsChain(
+      compareIn.parse({
+        independent_name: "Finca Coffee",
+        chain_name: "Starbucks",
+        near: "Charlotte, NC",
+      }),
     ),
   );
 

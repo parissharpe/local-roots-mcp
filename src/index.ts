@@ -30,6 +30,10 @@ import {
   inputSchema as indexSchema,
   neighborhoodLocalIndex,
 } from "./tools/neighborhoodLocalIndex.js";
+import {
+  inputSchema as compareSchema,
+  compareLocalVsChain,
+} from "./tools/compareLocalVsChain.js";
 
 import { runTool } from "./util/response.js";
 
@@ -45,7 +49,7 @@ function checkEnvAtStartup(): void {
 const server = new McpServer(
   {
     name: "local-roots-mcp",
-    version: "0.1.0",
+    version: "0.3.0",
   },
   {
     capabilities: {
@@ -92,6 +96,16 @@ server.tool(
     "independent for hardware, and surfacing that nuance is the point.",
   indexSchema.shape,
   async (args) => runTool("neighborhood_local_index", args, neighborhoodLocalIndex),
+);
+
+server.tool(
+  "compare_local_vs_chain",
+  "Score a local independent head-to-head against a national chain at the same location. Resolves both businesses via Google Places, runs LocalRoots scoring on each, and returns a side-by-side breakdown with a score delta and plain-language verdict. " +
+    "Use this when a user wants to understand exactly how much more independent a local spot is compared to the chain down the street, or to validate that a suspected chain is actually disqualified. " +
+    "National chains will score tier_4 (disqualified) in almost all cases. A warning fires if the chain somehow scores higher than the independent, which usually means the chain name is not in the bundled database or the independent has a very thin Google profile. " +
+    "Checks the Wayback Machine for the independent's website to infer tenure before 2005, 2010, or 2015.",
+  compareSchema.shape,
+  async (args) => runTool("compare_local_vs_chain", args, compareLocalVsChain),
 );
 
 async function main() {

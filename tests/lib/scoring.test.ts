@@ -74,18 +74,28 @@ describe("score: category bonuses for farms", () => {
     expect(b.category_bonuses.some((s) => s.signal.startsWith("ecommerce_platform:"))).toBe(true);
   });
 
-  it("does not add a phantom Century Farm signal when the registry is empty", () => {
+  it("does not match a non-registry farm even when the NC address is present", () => {
     const b = score({
       name: "Riverbend Farm",
       category_hint: "farm",
       user_rating_count: 8,
       formatted_address: "Riverbend Rd, Asheville, NC 28801",
     });
-    const phantom = b.category_bonuses.find((s) => s.signal === "nc_century_farm");
-    expect(phantom).toBeUndefined();
-    const pending = b.category_bonuses.find((s) => s.signal === "century_farm_registry_pending");
-    expect(pending).toBeDefined();
-    expect(pending?.points).toBe(0);
+    // Not in sample registry — no nc_century_farm signal
+    expect(b.category_bonuses.some((s) => s.signal === "nc_century_farm")).toBe(false);
+    // Registry has 15 sample entries, so century_farm_registry_pending does not fire
+    expect(b.category_bonuses.some((s) => s.signal === "century_farm_registry_pending")).toBe(false);
+  });
+
+  it("fires nc_century_farm for a farm in the bundled sample registry", () => {
+    const b = score({
+      name: "Plum Granny Farm",
+      category_hint: "farm",
+      user_rating_count: 5,
+      county: "Stokes",
+    });
+    expect(b.category_bonuses.some((s) => s.signal === "nc_century_farm")).toBe(true);
+    expect(b.category_bonuses.find((s) => s.signal === "nc_century_farm")?.points).toBe(30);
   });
 });
 
@@ -235,5 +245,42 @@ describe("score: enrichment data flowing into signals", () => {
     // Both land tier_2 under the v0.2 threshold (low_digital_footprint offsets the editorial gain)
     expect(withoutEditorial.tier).toBe("tier_2");
     expect(withEditorial.tier).toBe("tier_2");
+  });
+});
+
+describe("score: wayback tenure signals", () => {
+  it("fires tenure_wayback_pre_2005 (+20) for a snapshot year before 2005", () => {
+    const b = score({ name: "Heritage Books", user_rating_count: 30, wayback_earliest_year: 2001 });
+    const sig = b.universal.find((s) => s.signal === "tenure_wayback_pre_2005");
+    expect(sig).toBeDefined();
+    expect(sig?.points).toBe(20);
+  });
+
+  it("fires tenure_wayback_pre_2010 (+12) for a snapshot year between 2005 and 2009", () => {
+    const b = score({ name: "Heritage Books", user_rating_count: 30, wayback_earliest_year: 2007 });
+    expect(b.universal.some((s) => s.signal === "tenure_wayback_pre_2010")).toBe(true);
+    expect(b.universal.some((s) => s.signal === "tenure_wayback_pre_2005")).toBe(false);
+  });
+
+  it("fires tenure_wayback_pre_2015 (+6) for a snapshot year between 2010 and 2014", () => {
+    const b = score({ name: "Heritage Books", user_rating_count: 30, wayback_earliest_year: 2012 });
+    const sig = b.universal.find((s) => s.signal === "tenure_wayback_pre_2015");
+    expect(sig).toBeDefined();
+    expect(sig?.points).toBe(6);
+  });
+
+  it("fires no wayback signal for a snapshot year of 2015 or later", () => {
+    const b = score({ name: "Heritage Books", user_rating_count: 30, wayback_earliest_year: 2016 });
+    const waybackSigs = b.universal.filter(
+      (s) => s.signal.startsWith("tenure_wayback") || s.signal === "wayback_no_snapshot",
+    );
+    expect(waybackSigs).toHaveLength(0);
+  });
+
+  it("fires wayback_no_snapshot (0 points) when wayback_earliest_year is null", () => {
+    const b = score({ name: "Heritage Books", user_rating_count: 30, wayback_earliest_year: null });
+    const sig = b.universal.find((s) => s.signal === "wayback_no_snapshot");
+    expect(sig).toBeDefined();
+    expect(sig?.points).toBe(0);
   });
 });

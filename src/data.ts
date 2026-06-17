@@ -43,11 +43,11 @@ export interface EcommercePlatformsFile {
 }
 
 export interface CenturyFarmEntry {
-  family_surname: string;
+  name: string;
   county: string;
-  year_recognized?: number;
-  farm_name?: string;
-  notes?: string;
+  city?: string;
+  since_year: number;
+  website?: string;
 }
 
 export interface CenturyFarmsFile {
@@ -68,8 +68,18 @@ function loadJson<T>(filename: string): T {
   return JSON.parse(raw) as T;
 }
 
+function loadCenturyFarms(): CenturyFarmsFile {
+  const main = loadJson<CenturyFarmsFile>("century-farms-nc.json");
+  if (main.farms.length > 0) return main;
+  try {
+    const sample = loadJson<{ farms: CenturyFarmEntry[] }>("century-farms-nc-sample.json");
+    return { ...main, farms: sample.farms };
+  } catch {
+    return main;
+  }
+}
+
 export const chainDatabase: ChainDatabase = loadJson<ChainDatabase>("chain-database.json");
 export const ecommercePlatformsFile: EcommercePlatformsFile =
   loadJson<EcommercePlatformsFile>("ecommerce-platforms.json");
-export const centuryFarmsFile: CenturyFarmsFile =
-  loadJson<CenturyFarmsFile>("century-farms-nc.json");
+export const centuryFarmsFile: CenturyFarmsFile = loadCenturyFarms();

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { searchText, getPlaceDetails, type Place } from "../lib/google-places.js";
 import { score, type BusinessSignals, type ScoreBreakdown, type Tier } from "../lib/scoring.js";
 import { detectChain } from "../lib/chains.js";
+import { checkWaybackTenure } from "../lib/wayback.js";
 import type { EducationalResponse } from "../util/response.js";
 
 export const inputSchema = z.object({
@@ -31,6 +32,7 @@ export const inputSchema = z.object({
 export type Input = z.infer<typeof inputSchema>;
 
 const ENRICH_CAP = 10;
+const WAYBACK_CAP = 5;
 
 interface ScoredPlace {
   place_id: string;
@@ -42,6 +44,7 @@ interface ScoredPlace {
   national_phone_number?: string;
   rating?: number;
   user_rating_count?: number;
+  wayback_earliest_year?: number | null;
   tier: Tier;
   total_score: number;
   signal_breakdown: ScoreBreakdown;
@@ -90,7 +93,7 @@ async function enrichWithDetails(
   );
 }
 
-function placeToSignals(p: Place): BusinessSignals {
+function placeToSignals(p: Place, waybackYear?: number | null): BusinessSignals {
   const chain = detectChain(p.display_name);
   return {
     name: p.display_name,
@@ -102,6 +105,7 @@ function placeToSignals(p: Place): BusinessSignals {
     editorial_summary: p.editorial_summary,
     formatted_address: p.formatted_address,
     has_chain_in_name: chain.matched,
+    wayback_earliest_year: waybackYear,
   };
 }
 
@@ -143,9 +147,21 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
   const enrichResults = await enrichWithDetails(places);
   const enrichmentApplied = enrichResults.some((r) => r.enriched);
 
+  // Wayback check for enriched places with websites, capped at WAYBACK_CAP to limit latency
+  const waybackMap = new Map<string, number | null | undefined>();
+  let waybackChecked = 0;
+  for (const { place, enriched } of enrichResults) {
+    if (enriched && place.website_uri && waybackChecked < WAYBACK_CAP) {
+      const year = await checkWaybackTenure(place.website_uri);
+      waybackMap.set(place.place_id, year);
+      waybackChecked++;
+    }
+  }
+
   const scored: ScoredPlace[] = enrichResults
     .map(({ place: p, enriched }) => {
-      const breakdown = score(placeToSignals(p));
+      const waybackYear = waybackMap.get(p.place_id);
+      const breakdown = score(placeToSignals(p, waybackYear));
       return {
         place_id: p.place_id,
         name: p.display_name,
@@ -156,6 +172,7 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
         national_phone_number: p.national_phone_number,
         rating: p.rating,
         user_rating_count: p.user_rating_count,
+        wayback_earliest_year: waybackYear,
         tier: breakdown.tier,
         total_score: breakdown.total_score,
         signal_breakdown: breakdown,
@@ -188,6 +205,7 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
       "Google Places API (New): https://developers.google.com/maps/documentation/places/web-service/overview",
       "LocalRoots scoring framework: see src/lib/scoring.ts. Universal signals (tenure, family ownership, low marketing footprint, single-location) + category-specific bonuses (farm DTC e-commerce, scratch kitchens, etc.) + chain disqualification.",
       "Bundled chain database: data/chain-database.json",
+      "Wayback Machine CDX API: https://web.archive.org/cdx/search. Used to infer website tenure from the earliest archived snapshot.",
     ],
     practical_note: practical,
     follow_up_questions: [
