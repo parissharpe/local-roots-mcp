@@ -55,7 +55,7 @@ const TIER_LABELS: Record<Tier, string> = {
  */
 const TIER_MIN: Record<Exclude<Tier, "tier_4">, number> = {
   tier_1: 70,
-  tier_2: 25,
+  tier_2: 18,
   tier_3: 10,
 };
 
@@ -229,6 +229,13 @@ function lowMarketingFootprintSignals(s: BusinessSignals): SignalLine[] {
       signal: "no_website",
       points: 5,
       why: "No website on file. Strong indicator of single-location, word-of-mouth-driven operation.",
+    });
+  }
+  if (!s.website_uri && !s.editorial_summary && (s.photo_count ?? 0) < 3) {
+    out.push({
+      signal: "low_digital_footprint",
+      points: 12,
+      why: "Website, editorial summary, and photo presence are all minimal. Chains and franchises maintain robust Google profiles; this combination strongly correlates with single-location, operator-run businesses.",
     });
   }
   return out;

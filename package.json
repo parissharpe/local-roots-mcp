@@ -1,6 +1,6 @@
 {
   "name": "@parissharpe/local-roots-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Surfaces independent local businesses the algorithm normally buries. Educational MCP server that inverts the dominant local-search scoring: rewards tenure, family ownership, and direct-to-consumer over review count and marketing spend.",
   "type": "module",
   "license": "Apache-2.0",

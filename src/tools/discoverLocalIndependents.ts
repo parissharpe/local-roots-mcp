@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { searchText, type Place } from "../lib/google-places.js";
+import { searchText, getPlaceDetails, type Place } from "../lib/google-places.js";
 import { score, type BusinessSignals, type ScoreBreakdown, type Tier } from "../lib/scoring.js";
 import { detectChain } from "../lib/chains.js";
 import type { EducationalResponse } from "../util/response.js";
@@ -30,6 +30,8 @@ export const inputSchema = z.object({
 
 export type Input = z.infer<typeof inputSchema>;
 
+const ENRICH_CAP = 10;
+
 interface ScoredPlace {
   place_id: string;
   name: string;
@@ -44,11 +46,13 @@ interface ScoredPlace {
   total_score: number;
   signal_breakdown: ScoreBreakdown;
   practical_note: string;
+  details_enriched: boolean;
 }
 
 export interface Answer {
   query_used: { query: string; near: string; radius_km: number };
   result_count: number;
+  enrichment_applied: boolean;
   results: ScoredPlace[];
 }
 
@@ -59,6 +63,31 @@ function parseLatLng(near: string): { lat: number; lng: number } | null {
   const lng = parseFloat(m[2]);
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat, lng };
+}
+
+function mergeWithDetails(search: Place, details: Place): Place {
+  return {
+    ...search,
+    website_uri: details.website_uri ?? search.website_uri,
+    editorial_summary: details.editorial_summary ?? search.editorial_summary,
+    photo_count: Math.max(details.photo_count, search.photo_count),
+  };
+}
+
+async function enrichWithDetails(
+  places: Place[],
+): Promise<Array<{ place: Place; enriched: boolean }>> {
+  return Promise.all(
+    places.map(async (p, i) => {
+      if (i >= ENRICH_CAP) return { place: p, enriched: false };
+      try {
+        const details = await getPlaceDetails(p.place_id);
+        return { place: mergeWithDetails(p, details), enriched: true };
+      } catch {
+        return { place: p, enriched: false };
+      }
+    }),
+  );
 }
 
 function placeToSignals(p: Place): BusinessSignals {
@@ -76,17 +105,20 @@ function placeToSignals(p: Place): BusinessSignals {
   };
 }
 
-function practicalNoteForPlace(b: ScoreBreakdown, p: Place): string {
+function practicalNoteForPlace(b: ScoreBreakdown, p: Place, enriched: boolean): string {
+  const enrichNote = enriched
+    ? "Scored with Place Details enrichment."
+    : "Scored from search data only.";
   if (b.disqualified) {
     return `Disqualified as a national chain. ${b.disqualification_reason ?? ""}`.trim();
   }
   if (b.tier === "tier_1") {
-    return `Strong independent signal. The top contributors were: ${topReasons(b, 3)}.`;
+    return `Strong independent signal. Top contributors: ${topReasons(b, 3)}. ${enrichNote}`;
   }
   if (b.tier === "tier_2") {
-    return `Likely independent. Visible signals: ${topReasons(b, 2)}. If you want to confirm, call the business at ${p.national_phone_number ?? "the number on their site"} and ask how long they have been there and who owns it.`;
+    return `Likely independent. Visible signals: ${topReasons(b, 2)}. Call at ${p.national_phone_number ?? "the number on their site"} to confirm tenure and ownership. ${enrichNote}`;
   }
-  return `Ambiguous. The signals are mixed: ${topReasons(b, 2)}. Use score_specific_business with their address for a closer read, or open the website to verify the operator narrative.`;
+  return `Ambiguous. Mixed signals: ${topReasons(b, 2)}. Use score_specific_business for a closer read. ${enrichNote}`;
 }
 
 function topReasons(b: ScoreBreakdown, n: number): string {
@@ -108,8 +140,11 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
     max_results: Math.min(20, maxResults * 2),
   });
 
-  const scored: ScoredPlace[] = places
-    .map((p) => {
+  const enrichResults = await enrichWithDetails(places);
+  const enrichmentApplied = enrichResults.some((r) => r.enriched);
+
+  const scored: ScoredPlace[] = enrichResults
+    .map(({ place: p, enriched }) => {
       const breakdown = score(placeToSignals(p));
       return {
         place_id: p.place_id,
@@ -124,7 +159,8 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
         tier: breakdown.tier,
         total_score: breakdown.total_score,
         signal_breakdown: breakdown,
-        practical_note: practicalNoteForPlace(breakdown, p),
+        practical_note: practicalNoteForPlace(breakdown, p, enriched),
+        details_enriched: enriched,
       };
     })
     .filter((r) => (input.include_chains ? true : !r.signal_breakdown.disqualified))
@@ -136,14 +172,16 @@ export async function discoverLocalIndependents(input: Input): Promise<Education
     .sort((a, b) => b.total_score - a.total_score)
     .slice(0, maxResults);
 
-  const practical = scored.length === 0
-    ? "No qualifying independents in this search. Widen radius_km, soften min_tier, or check whether the category itself is dominated by chains in this area. The /score_specific_business tool is useful when you have a specific candidate in mind."
-    : "Results are ranked by score, not by Google's default relevance. Open each result's signal_breakdown to see exactly why it ranked where it did. The place_id can be used in score_specific_business for a deeper look.";
+  const practical =
+    scored.length === 0
+      ? "No qualifying independents in this search. Widen radius_km, soften min_tier, or check whether the category itself is dominated by chains in this area. The score_specific_business tool is useful when you have a specific candidate in mind."
+      : "Results are ranked by score, not by Google's default relevance. Open each result's signal_breakdown to see exactly why it ranked where it did. The place_id can be used in score_specific_business for a deeper look.";
 
   return {
     answer: {
       query_used: { query: input.query, near: input.near, radius_km: radiusKm },
       result_count: scored.length,
+      enrichment_applied: enrichmentApplied,
       results: scored,
     },
     citations: [

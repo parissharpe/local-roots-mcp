@@ -105,4 +105,135 @@ describe("score: tier assignment", () => {
     const b = score({ name: "Some Local Spot", user_rating_count: 0 });
     expect(["tier_1", "tier_2", "tier_3"]).toContain(b.tier);
   });
+
+  it("assigns tier_2 for a modest-footprint independent at the 18-point threshold", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 80,
+      photo_count: 5,
+      website_uri: "https://cornerdeli.com",
+      editorial_summary: undefined,
+    });
+    // modest_review_count(+8) + sparse_photo_presence(+5) + no_chain_signal(+10) = 23
+    expect(b.tier).toBe("tier_2");
+    expect(b.total_score).toBeGreaterThanOrEqual(18);
+  });
+});
+
+describe("score: low_digital_footprint signal", () => {
+  it("fires when website, editorial, and photos are all absent", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 15,
+      photo_count: 0,
+      website_uri: undefined,
+      editorial_summary: undefined,
+    });
+    expect(b.universal.some((s) => s.signal === "low_digital_footprint")).toBe(true);
+  });
+
+  it("does not fire when a website is present", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 15,
+      photo_count: 0,
+      website_uri: "https://cornerdeli.com",
+      editorial_summary: undefined,
+    });
+    expect(b.universal.some((s) => s.signal === "low_digital_footprint")).toBe(false);
+  });
+
+  it("does not fire when an editorial summary is present", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 15,
+      photo_count: 0,
+      website_uri: undefined,
+      editorial_summary: "A neighborhood staple since 1988.",
+    });
+    expect(b.universal.some((s) => s.signal === "low_digital_footprint")).toBe(false);
+  });
+
+  it("does not fire when photo count is 3 or more", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 15,
+      photo_count: 5,
+      website_uri: undefined,
+      editorial_summary: undefined,
+    });
+    expect(b.universal.some((s) => s.signal === "low_digital_footprint")).toBe(false);
+  });
+
+  it("fires when photo count is 1 or 2 (under the threshold)", () => {
+    const b = score({
+      name: "Corner Deli",
+      user_rating_count: 15,
+      photo_count: 2,
+      website_uri: undefined,
+      editorial_summary: undefined,
+    });
+    expect(b.universal.some((s) => s.signal === "low_digital_footprint")).toBe(true);
+  });
+});
+
+describe("score: no_chain_signal baseline", () => {
+  it("fires for non-chain businesses", () => {
+    const b = score({ name: "Independent Bookshop", user_rating_count: 50 });
+    expect(b.universal.some((s) => s.signal === "no_chain_signal")).toBe(true);
+  });
+
+  it("does not fire for disqualified chains (early return path)", () => {
+    const b = score({ name: "Walmart", user_rating_count: 2000 });
+    expect(b.disqualified).toBe(true);
+    expect(b.universal.some((s) => s.signal === "no_chain_signal")).toBe(false);
+  });
+});
+
+describe("score: photo presence signals", () => {
+  it("fires sparse_photo_presence for 1-9 photos", () => {
+    const b = score({ name: "Quiet Corner Cafe", user_rating_count: 30, photo_count: 5 });
+    expect(b.universal.some((s) => s.signal === "sparse_photo_presence")).toBe(true);
+  });
+
+  it("does not fire sparse_photo_presence for 0 photos", () => {
+    const b = score({ name: "Quiet Corner Cafe", user_rating_count: 30, photo_count: 0 });
+    expect(b.universal.some((s) => s.signal === "sparse_photo_presence")).toBe(false);
+  });
+
+  it("does not fire sparse_photo_presence for 10 or more photos", () => {
+    const b = score({ name: "Popular Cafe", user_rating_count: 30, photo_count: 10 });
+    expect(b.universal.some((s) => s.signal === "sparse_photo_presence")).toBe(false);
+  });
+});
+
+describe("score: enrichment data flowing into signals", () => {
+  it("fires tenure signal when editorial summary provides founding year", () => {
+    const b = score({
+      name: "Commonwealth Coffee",
+      user_rating_count: 12,
+      photo_count: 10,
+      website_uri: undefined,
+      editorial_summary: "Family-owned specialty coffee open since 2002.",
+    });
+    const hasTenure = b.universal.some(
+      (s) => s.signal === "established_10_plus" || s.signal === "established_25_plus",
+    );
+    expect(hasTenure).toBe(true);
+    expect(b.universal.some((s) => s.signal === "family_ownership_in_editorial")).toBe(true);
+  });
+
+  it("fires family_ownership_in_editorial when enriched editorial provides that signal", () => {
+    const withoutEditorial = score({ name: "Finca Coffee", user_rating_count: 8 });
+    const withEditorial = score({
+      name: "Finca Coffee",
+      user_rating_count: 8,
+      editorial_summary: "Family-run specialty roaster.",
+    });
+    expect(withoutEditorial.universal.some((s) => s.signal === "family_ownership_in_editorial")).toBe(false);
+    expect(withEditorial.universal.some((s) => s.signal === "family_ownership_in_editorial")).toBe(true);
+    // Both land tier_2 under the v0.2 threshold (low_digital_footprint offsets the editorial gain)
+    expect(withoutEditorial.tier).toBe("tier_2");
+    expect(withEditorial.tier).toBe("tier_2");
+  });
 });

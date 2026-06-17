@@ -37,8 +37,15 @@ The scoring breakdown is the differentiator. A user who reads it walks away unde
 - Live page fetching to detect generic Shopify / Square Online storefronts that are not on the bundled farm-first platform list.
 - Non-NC Century Farm registries (only NC is tracked in the v0.1 placeholder).
 
-**Coming in v0.2:**
+**Shipped in v0.2:**
 
+- Place Details enrichment for `discover_local_independents`: each result is re-fetched with a Place Details call to fill in `editorialSummary`, `websiteUri`, and photo count before scoring. This unlocks tenure and family-ownership signals that searchText cannot surface.
+- `low_digital_footprint` signal (+12 points): fires when website, editorial summary, and photo count are all absent or minimal after enrichment, a compound marker that correlates strongly with single-location, marketing-free operators.
+- Tier threshold recalibration (tier_2: 40 → 25 → 18) based on live API calibration across three cities.
+
+**Coming in v0.3:**
+
+- `compare_local_vs_chain` tool (deferred from v0.1).
 - Population of the NC Century Farm registry (see CONTRIBUTING.md for the procedure).
 - Additional category bonuses for breweries, butchers, and tailors.
 - Optional live page fetch when a farm website looks like a generic storefront.
@@ -131,6 +138,24 @@ Parameters:
 
 The Local Index is best read relatively. Compare two neighborhoods rather than treating a single number as definitive.
 
+## API usage
+
+Each tool uses Google Places API (New) calls. The call count matters for billing.
+
+| Tool | Call pattern | Default max calls |
+|---|---|---|
+| `discover_local_independents` | 1 Text Search + up to 10 Place Details (enrichment) | 11 per query |
+| `score_specific_business` | 1 Place Details (if `place_id` given) or 1 Text Search + 1 Place Details | 1-2 per query |
+| `find_farms_with_online_store` | 1 Text Search | 1 per query |
+| `neighborhood_local_index` | 1 Text Search per category (default 6 categories) | 6 per query |
+
+**Estimated cost per `discover_local_independents` call (default 10 results):**  
+1 Text Search (~$0.032) + 10 Place Details (~$0.017 each) = ~$0.20 per call at current Google pricing. See [Google Maps Platform pricing](https://mapsplatform.google.com/pricing/) for current rates; prices change.
+
+New Google Cloud accounts include a $300 free trial credit (90-day window). At ~$0.20 per discovery query, that covers roughly 1,500 calls before billing begins.
+
+To reduce Place Details calls, lower `max_results` (e.g., `max_results: 5` uses 1 Text Search + 5 Place Details = ~$0.12). The enrichment cap is always 10 regardless of `max_results`.
+
 ## How the scoring works
 
 Every result carries a `signal_breakdown` with three sections: `universal`, `category_bonuses`, and `negatives`. Each line item shows the signal name, the points, and why those points were assigned. The total is the sum.
@@ -144,7 +169,8 @@ Every result carries a `signal_breakdown` with three sections: `universal`, `cat
 - `family_ownership_in_editorial` (+8): explicit "family-owned" / "third-generation" in the editorial summary.
 - `low_review_count` (+15) / `modest_review_count` (+8): 0-49 / 50-199 reviews respectively. The algorithm rewards review velocity, so a sparse footprint correlates with operator-run discovery.
 - `sparse_photo_presence` (+5): fewer than 10 photos.
-- `no_website` (+5): often the strongest single signal that a business is single-location and word-of-mouth-driven, though it weakens a farm's DTC score.
+- `no_website` (+5): often the strongest single signal that a business is single-location and word-of-mouth-driven.
+- `low_digital_footprint` (+12): website, editorial summary, and photo count are all absent or minimal after Place Details enrichment. Chains and franchises maintain robust Google profiles; this combination strongly correlates with single-location, operator-run businesses.
 - `no_chain_signal` (+10): no national-chain name match. The baseline assumption of independence.
 
 **Category-specific bonuses**
@@ -161,9 +187,9 @@ Every result carries a `signal_breakdown` with three sections: `universal`, `cat
 
 **Tier thresholds**
 
-- `tier_1` (≥70): strong independent.
-- `tier_2` (≥40): likely independent.
-- `tier_3` (≥10): ambiguous.
+- `tier_1` (≥70): strong independent. Requires tenure or compound ownership signals.
+- `tier_2` (≥18): likely independent. At minimum: 50-199 reviews and no chain name match.
+- `tier_3` (≥10): ambiguous. Insufficient signal to confidently call it independent.
 - `tier_4`: chain or chain-equivalent, disqualified.
 
 ## Limits, caveats, and known gaps
