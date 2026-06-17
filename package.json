@@ -1,0 +1,54 @@
+{
+  "name": "@parissharpe/local-roots-mcp",
+  "version": "0.1.0",
+  "description": "Surfaces independent local businesses the algorithm normally buries. Educational MCP server that inverts the dominant local-search scoring: rewards tenure, family ownership, and direct-to-consumer over review count and marketing spend.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Paris R. Sharpe",
+  "bin": {
+    "local-roots-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist/",
+    "data/",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "smoke-test": "tsx scripts/smoke-test.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.9"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "local-business",
+    "google-places",
+    "small-business",
+    "farms",
+    "claude"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parissharpe/local-roots-mcp"
+  }
+}

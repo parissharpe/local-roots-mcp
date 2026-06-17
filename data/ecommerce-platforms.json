@@ -1,0 +1,67 @@
+{
+  "_metadata": {
+    "populated_date": "2026-06-16",
+    "source": "Hand-curated list of the dominant direct-to-consumer e-commerce platforms used by independent U.S. farms. Used by find_farms_with_online_store to detect when a farm has DTC e-commerce.",
+    "review_cadence": "Annually, or whenever a user reports a new platform.",
+    "matching_rules": "Match against website URL host, path fragments, or embedded subdomain patterns. A single platform match is sufficient to mark a farm as 'has_online_store'.",
+    "note": "These platforms are farm-first checkout systems. Many farms also use Shopify, Square Online, or a custom site; those generic platforms are intentionally NOT in this list because matching on them would generate false positives across all retail categories. v0.2 may add a generic-shop fallback that requires additional farm signals."
+  },
+  "platforms": [
+    {
+      "name": "GrazeCart",
+      "url": "https://grazecart.com",
+      "host_patterns": ["grazecart.com"],
+      "subdomain_pattern": "*.grazecart.com",
+      "audience": "Pasture-based meat farms primarily; also dairy and produce.",
+      "signal_strength": "high"
+    },
+    {
+      "name": "Local Line",
+      "url": "https://localline.ca",
+      "host_patterns": ["localline.ca", "localline.com"],
+      "subdomain_pattern": "*.localline.ca",
+      "audience": "Diverse farm types; widely adopted in U.S. and Canada.",
+      "signal_strength": "high"
+    },
+    {
+      "name": "Barn2Door",
+      "url": "https://barn2door.com",
+      "host_patterns": ["barn2door.com"],
+      "subdomain_pattern": "*.barn2door.com",
+      "audience": "Multi-product farms, subscription/CSA-first.",
+      "signal_strength": "high"
+    },
+    {
+      "name": "Harvie",
+      "url": "https://harvie.farm",
+      "host_patterns": ["harvie.farm"],
+      "subdomain_pattern": "*.harvie.farm",
+      "audience": "CSA-first farms, customizable share model.",
+      "signal_strength": "high"
+    },
+    {
+      "name": "Farmigo",
+      "url": "https://farmigo.com",
+      "host_patterns": ["farmigo.com"],
+      "subdomain_pattern": "*.farmigo.com",
+      "audience": "Farm-to-community group buying. Smaller footprint post-2016 pivot.",
+      "signal_strength": "medium"
+    },
+    {
+      "name": "GrownBy",
+      "url": "https://grownby.app",
+      "host_patterns": ["grownby.app"],
+      "subdomain_pattern": "*.grownby.app",
+      "audience": "Cooperative-owned, farmer-built platform.",
+      "signal_strength": "high"
+    },
+    {
+      "name": "LocalHarvest",
+      "url": "https://localharvest.org",
+      "host_patterns": ["localharvest.org"],
+      "subdomain_pattern": null,
+      "audience": "Directory and storefront for farms, CSAs, and farmers markets. A LocalHarvest profile signals an active independent farm.",
+      "signal_strength": "medium"
+    }
+  ]
+}

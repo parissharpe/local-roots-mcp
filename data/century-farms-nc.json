@@ -1,0 +1,11 @@
+{
+  "_metadata": {
+    "populated_date": "2026-06-16",
+    "source": "North Carolina Department of Agriculture and Consumer Services Century Farm Family Program. The Program recognizes farms continuously owned by the same family for 100 years or more. The list of recognized farms is not available via API and must be sourced manually. See CONTRIBUTING.md, section 'Populating the NC Century Farm dataset', for the population procedure.",
+    "review_cadence": "Annually. NCDA&CS publishes additions in its newsletter and at agr.state.nc.us.",
+    "expected_record_count": "Approximately 1,800 farms (as of NCDA&CS public statements; verify against current count).",
+    "matching_rules": "Match on (family_surname, county) primary key. Fall back to a fuzzy match on farm_name when the surname is not embedded in the business name. A positive match adds the Century Farm bonus to the farm's score.",
+    "note": "Empty array placeholder for v0.1. The code in src/lib/century-farms.ts must gracefully handle an empty dataset (no false positives, no thrown errors) so that the other tools work end-to-end before this data lands."
+  },
+  "farms": []
+}
